@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model ClassificationCache {
+  id         String   @id @default(cuid())
+  org        String
+  projectId  String
+  kind       String
+  payload    String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([org, projectId, kind])
+}
+
+model SavedFilter {
+  id        String   @id @default(cuid())
+  name      String
+  payload   String
+  createdAt DateTime @default(now())
+}
+
+model ReportSnapshot {
+  id        String   @id @default(cuid())
+  project   String
+  label     String?
+  kpis      String
+  createdAt DateTime @default(now())
+
+  @@index([project, createdAt])
+}

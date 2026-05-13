@@ -1,0 +1,574 @@
+/* Thomson Reuters inspired palette (laranja + cinzas corporativos) */
+:root {
+  /* TR brand */
+  --tr-orange: #ff8000;
+  --tr-orange-dark: #e67300;
+  --tr-orange-soft: #fff4e6;
+  /* Neutrals (TR-style grays) */
+  --tr-tundora: #444444;
+  --tr-emperor: #555555;
+  --tr-dove: #666666;
+  --tr-silver: #cccccc;
+  --tr-mercury: #e9e9e9;
+  --tr-wild-sand: #f7f7f7;
+  /* App tokens */
+  --bg: var(--tr-wild-sand);
+  --panel: #ffffff;
+  --border: var(--tr-mercury);
+  --text: var(--tr-tundora);
+  --muted: var(--tr-dove);
+  --accent: var(--tr-orange);
+  --accent-hover: var(--tr-orange-dark);
+  --accent-muted: var(--tr-orange-soft);
+  --ok: #0d8050;
+  --warn: #c27a00;
+  --error: #c41e3a;
+  --shadow: 0 1px 3px rgba(68, 68, 68, 0.08);
+  --shadow-panel: 0 1px 4px rgba(68, 68, 68, 0.06);
+  --font-ui: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  font-family: var(--font-ui);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  color: var(--text);
+  background: #fff;
+  border: 1px solid var(--tr-silver);
+  border-radius: 4px;
+  padding: 0.5rem 0.65rem;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+  border-color: var(--accent);
+}
+
+/* Faixa de marca (layout) */
+.trBrandStrip {
+  height: 4px;
+  width: 100%;
+  background: linear-gradient(90deg, var(--tr-orange) 0%, #ffb366 50%, var(--tr-orange) 100%);
+  flex-shrink: 0;
+}
+
+.appShell {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 3rem;
+}
+
+.trPageHeader {
+  border-left: 4px solid var(--tr-orange);
+  padding-left: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.trPageHeader h1 {
+  color: var(--tr-tundora);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.trBrandMark {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tr-emperor);
+  margin-bottom: 0.35rem;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow-panel);
+}
+
+.stepTitle {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--tr-emperor);
+  margin-bottom: 0.35rem;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.5rem;
+}
+
+.pill {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  background: var(--tr-mercury);
+  font-size: 0.8rem;
+  color: var(--tr-emperor);
+  font-weight: 500;
+}
+
+.btn {
+  border: none;
+  border-radius: 4px;
+  padding: 0.55rem 1rem;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: var(--shadow);
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--tr-tundora);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btnSecondary {
+  background: #fff;
+  border: 1px solid var(--tr-silver);
+  color: var(--tr-tundora);
+  box-shadow: none;
+}
+
+.btnSecondary:hover:not(:disabled) {
+  background: var(--tr-wild-sand);
+  border-color: var(--tr-emperor);
+}
+
+.tableWrap {
+  overflow: auto;
+  max-height: 70vh;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+table.data {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+table.data th,
+table.data td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.5rem 0.55rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+table.data th {
+  position: sticky;
+  top: 0;
+  background: var(--tr-wild-sand);
+  z-index: 1;
+  font-weight: 600;
+  color: var(--tr-emperor);
+}
+
+table.data tbody tr:hover {
+  background: var(--accent-muted);
+}
+
+.tabs {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.tab {
+  padding: 0.45rem 0.85rem;
+  border-radius: 4px;
+  border: 1px solid var(--tr-silver);
+  background: #fff;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.tab:hover {
+  border-color: var(--accent);
+  color: var(--tr-tundora);
+}
+
+.tabActive {
+  border-color: var(--accent);
+  color: var(--tr-tundora);
+  background: var(--accent-muted);
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.error {
+  color: var(--error);
+  font-size: 0.9rem;
+}
+
+.listScroll {
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.35rem;
+  background: #fff;
+}
+
+.listScroll label {
+  display: flex;
+  gap: 0.35rem;
+  align-items: flex-start;
+  padding: 0.25rem 0.2rem;
+  cursor: pointer;
+  font-size: 0.88rem;
+  border-radius: 4px;
+}
+
+.listScroll label:hover {
+  background: var(--accent-muted);
+}
+
+.search {
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.65rem;
+}
+
+.metric {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem 0.7rem;
+  box-shadow: var(--shadow-panel);
+}
+
+.metric b {
+  display: block;
+  font-size: 1.15rem;
+  color: var(--tr-tundora);
+}
+
+.metric span {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.executiveKpiRow1 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.executiveKpiRow2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+@media (max-width: 640px) {
+  .executiveKpiRow1 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .executiveKpiRow2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kpiLabelCaps {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.kpiCompletionValue {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--ok);
+  line-height: 1.2;
+}
+
+.kpiProgressTrack {
+  height: 8px;
+  background: var(--tr-mercury);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 0.55rem;
+}
+
+.kpiProgressFill {
+  height: 100%;
+  min-width: 0;
+  background: var(--ok);
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.kpiVelocityValue {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--tr-tundora);
+  line-height: 1.2;
+}
+
+.kpiVelocityDetail {
+  display: block;
+  margin-top: 0.45rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.roadmapGroupTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--tr-tundora);
+}
+
+.trSectionTitle {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--tr-tundora);
+}
+
+.analyticsChartsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.consolidadoAreaGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.areaPathKpiCard {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  border-left-width: 4px;
+  box-shadow: var(--shadow-panel);
+  padding: 0.85rem 1rem;
+  min-height: 0;
+}
+
+.areaPathKpiCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+
+.areaPathKpiCardTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.areaPathKpiItemCount {
+  font-size: 0.8rem;
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.areaPathKpiBody {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem 0.5rem;
+  align-items: center;
+}
+
+.areaPathKpiDonutWrap {
+  position: relative;
+  height: 140px;
+  width: 100%;
+}
+
+.areaPathKpiDonutCenter {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: var(--tr-tundora);
+  pointer-events: none;
+  line-height: 1;
+}
+
+.areaPathKpiStats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+  font-size: 0.84rem;
+}
+
+.areaPathKpiStatRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  color: var(--tr-emperor);
+}
+
+.areaPathKpiStatRow strong {
+  font-weight: 700;
+  color: var(--tr-tundora);
+}
+
+.areaPathKpiStatTotal {
+  margin-top: 0.25rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--border);
+  font-weight: 600;
+}
+
+.areaPathKpiFooter {
+  margin-top: 0.65rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--tr-mercury);
+  text-align: center;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+@media (max-width: 380px) {
+  .areaPathKpiBody {
+    grid-template-columns: 1fr;
+  }
+}
+
+.analyticsChartBlock {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 0.85rem;
+  box-shadow: var(--shadow-panel);
+}
+
+.analyticsChartTitle {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--tr-emperor);
+  margin: 0 0 0.45rem;
+}
+
+/* Rollup estilo ADO (Progress by all Work Items) */
+.wiProgress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 140px;
+}
+
+.wiProgressTrack {
+  flex: 1;
+  height: 10px;
+  background: var(--tr-mercury);
+  border-radius: 3px;
+  overflow: hidden;
+  min-width: 72px;
+}
+
+.wiProgressFill {
+  height: 100%;
+  background: #0078d4;
+  border-radius: 3px;
+  min-width: 0;
+}
+
+.wiProgressFillDone {
+  background: #107c10;
+}
+
+.wiProgressFillNone {
+  background: transparent;
+}
+
+.wiProgressLabel {
+  font-size: 0.85rem;
+  color: var(--tr-emperor);
+  min-width: 2.5rem;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.wiProgressLabelMuted {
+  color: var(--tr-dove);
+}
