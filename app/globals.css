@@ -407,6 +407,85 @@ table.data tbody tr:hover {
   margin-bottom: 1.25rem;
 }
 
+.analyticsPivotFullWidth {
+  grid-column: 1 / -1;
+}
+
+.pivotTableScroll {
+  overflow: auto;
+  max-height: min(70vh, 520px);
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+table.data.pivotAreaStateTable {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+table.data.pivotAreaStateTable thead th {
+  top: 0;
+  z-index: 2;
+  vertical-align: bottom;
+}
+
+table.data.pivotAreaStateTable thead th.pivotCornerTh {
+  left: 0;
+  z-index: 4;
+  min-width: 11rem;
+  text-align: left;
+}
+
+table.data.pivotAreaStateTable tbody th.pivotAreaTh,
+table.data.pivotAreaStateTable tfoot th.pivotTotalRowTh {
+  position: sticky;
+  left: 0;
+  top: auto;
+  z-index: 2;
+  background: var(--panel);
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.06);
+  text-align: left;
+  font-weight: 600;
+}
+
+table.data.pivotAreaStateTable tbody th.pivotAreaTh {
+  font-weight: 500;
+}
+
+table.data.pivotAreaStateTable .pivotStateTh {
+  text-align: center;
+  max-width: 4.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  padding: 0.4rem 0.2rem;
+}
+
+table.data.pivotAreaStateTable .pivotTotalColTh,
+table.data.pivotAreaStateTable .pivotTotalTd {
+  font-weight: 600;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+table.data.pivotAreaStateTable .pivotGrandTd {
+  font-weight: 700;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+table.data.pivotAreaStateTable .pivotCountTd {
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  min-width: 2.25rem;
+}
+
 .consolidadoAreaGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));

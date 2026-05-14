@@ -14,6 +14,8 @@ export const ROADMAP_FIELD_REFS = [
   "System.IterationPath",
   "System.CreatedDate",
   "Microsoft.VSTS.Common.ClosedDate",
+  "System.Parent",
+  "Microsoft.VSTS.Scheduling.StoryPoints",
 ] as const;
 
 export const COMMITTED_DATE_REF = "Custom.CommittedDate";

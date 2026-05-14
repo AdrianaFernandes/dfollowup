@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReportFilterInput, WorkItemTypeName } from "@/lib/ado/filters";
 import { WORK_ITEM_TYPES } from "@/lib/ado/filters";
 import type { ReportResult, RoadmapRow } from "@/lib/ado/report";
+import { groupRoadmapBySelectedAreas } from "@/lib/ado/roadmapGroups";
 import { STATE_BUCKET_GLOSSARY_PT } from "@/lib/ado/states";
 import { downloadCsv } from "@/lib/exportCsv";
 import { downloadReportPdf } from "@/lib/exportReportPdf";
@@ -17,6 +18,23 @@ import { WorkItemProgressBar } from "@/components/WorkItemProgressBar";
 import { AnalyticsChartsPanel } from "@/components/AnalyticsChartsPanel";
 
 const ADO_ORG = process.env.NEXT_PUBLIC_AZURE_DEVOPS_ORG ?? "tr-ggo";
+
+/** Evita URLs relativas ambíguas em alguns browsers / extensões. */
+function appApiUrl(path: string): string {
+  if (typeof window === "undefined") return path;
+  return new URL(path, window.location.origin).href;
+}
+
+function isLikelyNetworkFetchFailure(e: unknown): boolean {
+  if (!(e instanceof TypeError)) return false;
+  const m = e.message;
+  return (
+    /failed to fetch/i.test(m) ||
+    m === "Load failed" ||
+    /networkerror when attempting to fetch/i.test(m) ||
+    /network request failed/i.test(m)
+  );
+}
 
 type ProjectRow = { id: string; name: string };
 
@@ -80,55 +98,6 @@ function isSavedWizardPayload(x: unknown): x is SavedWizardPayload {
   return true;
 }
 
-function areaItemUnderSelectedRoot(itemAreaPath: string, selectedRoot: string): boolean {
-  const item = itemAreaPath.trim();
-  const root = selectedRoot.trim();
-  if (!root) return false;
-  if (!item) return false;
-  if (item === root) return true;
-  return item.startsWith(`${root}\\`);
-}
-
-/** Agrupa o roadmap: uma secção por Area Path escolhida no filtro; itens só aparecem num grupo (ordem das seleções). */
-function groupRoadmapBySelectedAreas(
-  roadmap: RoadmapRow[],
-  selectedAreaPaths: string[],
-): { areaPath: string; rows: RoadmapRow[] }[] {
-  const usedIds = new Set<number>();
-  const groups: { areaPath: string; rows: RoadmapRow[] }[] = [];
-
-  for (const sel of selectedAreaPaths) {
-    const rows = roadmap
-      .filter((r) => {
-        if (usedIds.has(r.id)) return false;
-        if (!areaItemUnderSelectedRoot(r.areaPath, sel)) return false;
-        usedIds.add(r.id);
-        return true;
-      })
-      .sort((a, b) => a.id - b.id);
-    groups.push({ areaPath: sel, rows });
-  }
-
-  const leftovers = roadmap.filter((r) => !usedIds.has(r.id));
-  if (leftovers.length > 0) {
-    const byPath = new Map<string, RoadmapRow[]>();
-    for (const r of leftovers) {
-      const key = r.areaPath.trim() || "(sem Area Path)";
-      const arr = byPath.get(key) ?? [];
-      arr.push(r);
-      byPath.set(key, arr);
-    }
-    for (const [path, rows] of [...byPath.entries()].sort((a, b) =>
-      a[0].localeCompare(b[0], undefined, { sensitivity: "base" }),
-    )) {
-      rows.sort((a, b) => a.id - b.id);
-      groups.push({ areaPath: path, rows });
-    }
-  }
-
-  return groups;
-}
-
 export default function DeliveryFollowupClient() {
   const [step, setStep] = useState(1);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
@@ -162,7 +131,7 @@ export default function DeliveryFollowupClient() {
   const [reportLoading, setReportLoading] = useState(false);
   const [reportErr, setReportErr] = useState<string | null>(null);
   const [report, setReport] = useState<ReportResult | null>(null);
-  const [resultTab, setResultTab] = useState<"consolidado" | "areas" | "roadmap" | "analises">(
+  const [resultTab, setResultTab] = useState<"consolidado" | "roadmap" | "analises">(
     "consolidado",
   );
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -427,17 +396,28 @@ export default function DeliveryFollowupClient() {
     };
     setReportLoading(true);
     try {
-      const res = await fetch("/api/report", {
+      const res = await fetch(appApiUrl("/api/report"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data: unknown;
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(
+          res.ok
+            ? "Resposta inválida do servidor (não é JSON). Verifique o terminal onde corre o Next.js."
+            : `HTTP ${res.status}: ${text.slice(0, 280)}`,
+        );
+      }
       if (!res.ok) {
+        const d = data as { error?: unknown; details?: unknown };
         const msg =
-          typeof data.error === "string"
-            ? data.error
-            : JSON.stringify(data.details ?? data.error ?? res.statusText);
+          typeof d.error === "string"
+            ? d.error
+            : JSON.stringify(d.details ?? d.error ?? res.statusText);
         throw new Error(msg);
       }
       const nextReport = data as ReportResult;
@@ -461,7 +441,13 @@ export default function DeliveryFollowupClient() {
         }
       }
     } catch (e) {
-      setReportErr(e instanceof Error ? e.message : "Erro");
+      if (isLikelyNetworkFetchFailure(e)) {
+        setReportErr(
+          "Não foi possível contactar o servidor da aplicação (rede). Confirme que o Next.js está a correr (ex.: npm run dev) e que abre o site no mesmo URL (ex.: http://localhost:3000). VPN, proxy ou firewall podem bloquear pedidos locais.",
+        );
+      } else {
+        setReportErr(e instanceof Error ? e.message : "Erro");
+      }
     } finally {
       setReportLoading(false);
     }
@@ -548,24 +534,6 @@ export default function DeliveryFollowupClient() {
           . Iterações são do projeto; o recorte por área aplica-se na consulta (WIQL), como no Azure
           DevOps.
         </p>
-        <div className="row" style={{ marginTop: "0.65rem", flexWrap: "wrap", gap: "0.5rem" }}>
-          <button
-            type="button"
-            className="btnSecondary btn"
-            disabled={step !== 5 || !report}
-            title={
-              step !== 5 || !report
-                ? "Gere um relatório primeiro para ver Análises e Métricas."
-                : "Abrir separador Análises e Métricas"
-            }
-            onClick={() => {
-              setResultTab("analises");
-              queueMicrotask(() => resultsRef.current?.scrollIntoView({ behavior: "smooth" }));
-            }}
-          >
-            Análises e Métricas
-          </button>
-        </div>
       </header>
 
       <div className="panel">
@@ -894,7 +862,7 @@ export default function DeliveryFollowupClient() {
             <button
               type="button"
               className="btnSecondary btn"
-              title="Deck com agenda 6×15 min (Recap, Riscos, Roadmap, SLA, AI, Finanças)"
+              title="Delivery Follow-up: 25 slides, layout TR (barra verde, capa laranja) alinhado ao template; dados do relatório + resumo analítico"
               onClick={() => void downloadDeliveryMeetingPptx(report)}
             >
               PPT reunião delivery
@@ -957,13 +925,6 @@ export default function DeliveryFollowupClient() {
             </button>
             <button
               type="button"
-              className={`tab ${resultTab === "areas" ? "tabActive" : ""}`}
-              onClick={() => setResultTab("areas")}
-            >
-              Por Area Path
-            </button>
-            <button
-              type="button"
               className={`tab ${resultTab === "roadmap" ? "tabActive" : ""}`}
               onClick={() => setResultTab("roadmap")}
             >
@@ -1005,46 +966,6 @@ export default function DeliveryFollowupClient() {
                 Visão por área — work items
               </h3>
               <AreaPathConsolidadoGrid areas={report.byArea} />
-            </div>
-          )}
-
-          {resultTab === "areas" && (
-            <div className="tableWrap">
-              <table className="data">
-                <thead>
-                  <tr>
-                    <th>Area Path</th>
-                    <th>Total</th>
-                    <th>Closed</th>
-                    <th>Active</th>
-                    <th>New</th>
-                    <th>Atrasadas</th>
-                    <th>Features</th>
-                    <th>Conclusão</th>
-                    <th>Eficiência</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {report.byArea.map((a) => (
-                    <tr key={a.areaPath}>
-                      <td>{a.areaPath}</td>
-                      <td>{a.total}</td>
-                      <td>{a.closed}</td>
-                      <td>{a.active}</td>
-                      <td>{a.new}</td>
-                      <td>{a.overdue}</td>
-                      <td>{a.featureTotal}</td>
-                      <td>{pct(a.completionRate)}</td>
-                      <td>
-                        {a.efficiencyRate == null ? "N/D" : pct(a.efficiencyRate)}
-                        <div className="muted" style={{ fontSize: "0.72rem" }}>
-                          {a.efficiencyLabel}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           )}
 

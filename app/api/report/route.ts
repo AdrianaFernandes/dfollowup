@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { runDeliveryReport } from "@/lib/ado/runReport";
 
+/** Relatório pode demorar (WIQL + muitos work items + ADO). */
+export const maxDuration = 120;
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();

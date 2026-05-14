@@ -13,6 +13,7 @@ const nodeStub = path.join(rootDir, "lib", "node-stub.js");
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: rootDir,
+  serverExternalPackages: ["pptx-automizer"],
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.plugins.push(

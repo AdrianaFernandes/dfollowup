@@ -70,6 +70,16 @@ export async function fetchWorkItemsByIdsSafeFields(
         dropped.push("Microsoft.VSTS.Common.ClosedDate");
         continue;
       }
+      if (msg.includes("StoryPoints") || msg.includes("Scheduling.StoryPoints")) {
+        fields = fields.filter((f) => f !== "Microsoft.VSTS.Scheduling.StoryPoints");
+        dropped.push("Microsoft.VSTS.Scheduling.StoryPoints");
+        continue;
+      }
+      if (msg.includes("System.Parent")) {
+        fields = fields.filter((f) => f !== "System.Parent");
+        dropped.push("System.Parent");
+        continue;
+      }
       throw e;
     }
   }

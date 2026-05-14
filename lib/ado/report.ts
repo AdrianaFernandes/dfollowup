@@ -12,11 +12,28 @@ const F_START = "Microsoft.VSTS.Scheduling.StartDate";
 const F_COMMITTED = "Custom.CommittedDate";
 const F_AREA = "System.AreaPath";
 const F_ITER = "System.IterationPath";
+const F_PARENT = "System.Parent";
+const F_SP = "Microsoft.VSTS.Scheduling.StoryPoints";
+const F_CLOSED = "Microsoft.VSTS.Common.ClosedDate";
 
 function strField(f: Record<string, unknown>, ref: string): string {
   const v = f[ref];
   if (v == null) return "";
   return String(v);
+}
+
+function numField(f: Record<string, unknown>, ref: string): number | null {
+  const v = f[ref];
+  if (v == null || v === "") return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function parentIdField(f: Record<string, unknown>): number | null {
+  const v = f[F_PARENT];
+  if (v == null || v === "") return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
 }
 
 function parseDateOnly(raw: string): Date | null {
@@ -44,6 +61,8 @@ export type RoadmapRow = {
   id: number;
   workItemType: string;
   state: string;
+  /** Bucket New / Active / Closed derivado do mapa de estados do processo */
+  stateBucket: StateBucket;
   /** Rollup ADO: descendentes em Completed / total descendentes; null se não houver descendentes */
   progressPercent: number | null;
   targetDate: string;
@@ -53,6 +72,10 @@ export type RoadmapRow = {
   committedDate: string;
   areaPath: string;
   iterationPath: string;
+  parentId: number | null;
+  storyPoints: number | null;
+  /** ISO ou string vazia se campo não pedido / vazio */
+  closedDate: string;
 };
 
 export type AreaSummary = {
@@ -176,10 +199,12 @@ export function buildReport(
 
   const roadmap: RoadmapRow[] = items.map((wi) => {
     const f = wi.fields;
+    const state = strField(f, F_STATE);
     return {
       id: wi.id,
       workItemType: strField(f, F_TYPE),
-      state: strField(f, F_STATE),
+      state,
+      stateBucket: bucketForStateName(state, stateMap),
       progressPercent: progressByRootId.get(wi.id) ?? null,
       targetDate: strField(f, F_TARGET),
       title: strField(f, F_TITLE),
@@ -188,6 +213,9 @@ export function buildReport(
       committedDate: strField(f, F_COMMITTED),
       areaPath: strField(f, F_AREA),
       iterationPath: strField(f, F_ITER),
+      parentId: parentIdField(f),
+      storyPoints: numField(f, F_SP),
+      closedDate: strField(f, F_CLOSED),
     };
   });
 
