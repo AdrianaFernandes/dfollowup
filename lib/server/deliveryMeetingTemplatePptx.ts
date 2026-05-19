@@ -1,73 +1,89 @@
 import fs from "fs";
-import os from "os";
 import path from "path";
+import os from "os";
 import Automizer, { modify } from "pptx-automizer";
 import type { ReportResult } from "@/lib/ado/report";
-import { buildDeliveryMeetingPlaceholderMap } from "@/lib/deliveryMeetingPptxData";
+import {
+  buildDeliveryMeetingPlaceholderMap,
+  buildDeliveryMeetingReplaceTextSpecs,
+} from "@/lib/deliveryMeetingPptxData";
+import { normalizePptxZipPathSeparators } from "@/lib/normalizePptxZipSlashes";
 
-export const DELIVERY_TEMPLATE_FILENAME = "delivery-meeting-template.pptx";
+export const BUNDLED_DELIVERY_TEMPLATE = "delivery-meeting-template.pptx";
+/** Nome típico do modelo em Downloads (ex.: `C:\\Users\\…\\Downloads\\TEMPLEATE.pptx`). */
+export const DOWNLOADS_FALLBACK_TEMPLATE = "TEMPLEATE.pptx";
 
-export function getDeliveryTemplatePath(): string {
-  return path.join(process.cwd(), "templates", DELIVERY_TEMPLATE_FILENAME);
+/**
+ * Ordem: `DELIVERY_PPT_TEMPLATE_PATH` → `%USERPROFILE%/Downloads/TEMPLEATE.pptx` →
+ * `templates/delivery-meeting-template.pptx` (o modelo local em Downloads prevalece sobre o do repo).
+ */
+export function resolveDeliveryMeetingTemplatePath(): string | null {
+  const envPath = process.env.DELIVERY_PPT_TEMPLATE_PATH?.trim();
+  if (envPath && fs.existsSync(envPath)) return path.resolve(envPath);
+
+  const downloads = path.join(os.homedir(), "Downloads", DOWNLOADS_FALLBACK_TEMPLATE);
+  if (fs.existsSync(downloads)) return downloads;
+
+  const bundled = path.join(process.cwd(), "templates", BUNDLED_DELIVERY_TEMPLATE);
+  if (fs.existsSync(bundled)) return bundled;
+
+  return null;
 }
 
-export function deliveryTemplateExists(): boolean {
-  return fs.existsSync(getDeliveryTemplatePath());
-}
-
-export async function generateDeliveryMeetingPptxFromTemplate(
-  report: ReportResult | null,
-  meetingDate: Date,
-): Promise<Buffer> {
-  const templateDir = path.join(process.cwd(), "templates");
-  const tplPath = path.join(templateDir, DELIVERY_TEMPLATE_FILENAME);
-  if (!fs.existsSync(tplPath)) {
-    throw new Error("MISSING_TEMPLATE");
+/**
+ * Gera .pptx a partir do modelo, substituindo marcadores `{{DF_*}}` em todas as caixas de texto.
+ */
+export async function renderDeliveryMeetingPptxFromTemplate(report: ReportResult | null): Promise<Buffer> {
+  const templatePath = resolveDeliveryMeetingTemplatePath();
+  if (!templatePath) {
+    throw new Error(
+      "MISSING_TEMPLATE: defina DELIVERY_PPT_TEMPLATE_PATH, ou coloque " +
+        `${DOWNLOADS_FALLBACK_TEMPLATE} em Downloads, ou delivery-meeting-template.pptx em /templates.`,
+    );
   }
 
-  const placeholderMap = buildDeliveryMeetingPlaceholderMap(report, meetingDate);
-  const replaceRules = Object.entries(placeholderMap).map(([replace, text]) => ({
-    replace,
-    by: { text },
-  }));
-
+  const templateDir = path.dirname(templatePath);
   const outDir = path.join(os.tmpdir(), `dfollowup-pptx-${process.pid}-${Date.now()}`);
   fs.mkdirSync(outDir, { recursive: true });
+
+  const map = buildDeliveryMeetingPlaceholderMap(report);
+  const replaceSpecs = buildDeliveryMeetingReplaceTextSpecs(map);
+
+  const rawTemplate = fs.readFileSync(templatePath);
+  const templateBuffer = await normalizePptxZipPathSeparators(rawTemplate);
 
   try {
     const automizer = new Automizer({
       templateDir,
       outputDir: outDir,
       removeExistingSlides: true,
-      cleanup: true,
+      autoImportSlideMasters: true,
       verbosity: 0,
       compression: 0,
     });
 
-    const alias = "deck";
-    const pres = automizer.loadRoot(DELIVERY_TEMPLATE_FILENAME).load(DELIVERY_TEMPLATE_FILENAME, alias);
-    const info = await pres.getInfo();
-    const slides = info.slidesByTemplate(alias);
+    const pres = automizer.loadRoot(templateBuffer).load(templateBuffer, "deck");
 
-    for (const slideMeta of slides) {
-      pres.addSlide(alias, slideMeta.number, async (slide) => {
-        const ids = await slide.getAllTextElementIds();
-        for (const id of ids) {
-          slide.modifyElement(id, [modify.replaceText(replaceRules)]);
+    const slideNumbers = await pres.getTemplate("deck").getAllSlideNumbers();
+
+    for (const num of slideNumbers) {
+      pres.addSlide("deck", num, async (slide) => {
+        const elements = await slide.getAllTextElementIds();
+        for (const el of elements) {
+          slide.modifyElement(el, [modify.replaceText(replaceSpecs)]);
         }
       });
     }
 
     const outName = "delivery-out.pptx";
     await pres.write(outName);
-    const fullOut = path.join(outDir, outName);
-    const buf = fs.readFileSync(fullOut);
-    return buf;
+    const outPath = path.join(outDir, outName);
+    return fs.readFileSync(outPath);
   } finally {
     try {
       fs.rmSync(outDir, { recursive: true, force: true });
     } catch {
-      // ignore
+      /* ignore */
     }
   }
 }

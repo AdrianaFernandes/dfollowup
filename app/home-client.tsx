@@ -9,11 +9,12 @@ import { STATE_BUCKET_GLOSSARY_PT } from "@/lib/ado/states";
 import { downloadCsv } from "@/lib/exportCsv";
 import { downloadReportPdf } from "@/lib/exportReportPdf";
 import { downloadDeliveryMeetingPptx } from "@/lib/exportDeliveryMeetingPptx";
-import { downloadReportPptx } from "@/lib/exportReportPptx";
 import { buildReportKpiPayload, formatDelta, type ReportKpiPayload } from "@/lib/reportKpis";
 import { getExecutiveVelocity } from "@/lib/ado/executiveVelocity";
 import { ExecutiveSummaryKpis } from "@/components/ExecutiveSummaryKpis";
 import { AreaPathConsolidadoGrid } from "@/components/AreaPathConsolidadoGrid";
+import { LastMeetingPendingCard } from "@/components/LastMeetingPendingCard";
+import { RisksActionPlanCard } from "@/components/RisksActionPlanCard";
 import { WorkItemProgressBar } from "@/components/WorkItemProgressBar";
 import { AnalyticsChartsPanel } from "@/components/AnalyticsChartsPanel";
 
@@ -855,17 +856,15 @@ export default function DeliveryFollowupClient() {
             <button
               type="button"
               className="btnSecondary btn"
-              onClick={() => void downloadReportPptx(report)}
+              title="PowerPoint a partir do modelo (marcadores {{DF_*}}). Ordem: DELIVERY_PPT_TEMPLATE_PATH → Downloads/TEMPLEATE.pptx → templates/delivery-meeting-template.pptx"
+              onClick={() =>
+                void downloadDeliveryMeetingPptx(report).catch((err: unknown) => {
+                  const msg = err instanceof Error ? err.message : String(err);
+                  window.alert(`Exportação PowerPoint: ${msg}`);
+                })
+              }
             >
-              PowerPoint
-            </button>
-            <button
-              type="button"
-              className="btnSecondary btn"
-              title="Delivery Follow-up: 25 slides, layout TR (barra verde, capa laranja) alinhado ao template; dados do relatório + resumo analítico"
-              onClick={() => void downloadDeliveryMeetingPptx(report)}
-            >
-              PPT reunião delivery
+              PowerPoint (modelo)
             </button>
           </div>
 
@@ -966,6 +965,8 @@ export default function DeliveryFollowupClient() {
                 Visão por área — work items
               </h3>
               <AreaPathConsolidadoGrid areas={report.byArea} />
+              <LastMeetingPendingCard />
+              <RisksActionPlanCard />
             </div>
           )}
 

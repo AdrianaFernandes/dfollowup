@@ -2,46 +2,32 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import type { ReportResult } from "@/lib/ado/report";
 import { safeFilenamePart } from "@/lib/deliveryMeetingPptxShared";
-import {
-  deliveryTemplateExists,
-  generateDeliveryMeetingPptxFromTemplate,
-} from "@/lib/server/deliveryMeetingTemplatePptx";
-
-export const runtime = "nodejs";
+import { renderDeliveryMeetingPptxFromTemplate } from "@/lib/server/deliveryMeetingTemplatePptx";
 
 const bodySchema = z.object({
-  report: z.any().nullable(),
-  meetingDate: z.string().optional(),
+  report: z.unknown(),
 });
 
 export async function POST(req: Request) {
-  if (!deliveryTemplateExists()) {
-    return NextResponse.json(
-      { error: "MISSING_TEMPLATE", message: "Coloque delivery-meeting-template.pptx em /templates (ver templates/README.md)." },
-      { status: 404 },
-    );
-  }
-
   let json: unknown;
   try {
     json = await req.json();
   } catch {
-    return NextResponse.json({ error: "INVALID_JSON" }, { status: 400 });
+    return NextResponse.json({ error: "BAD_JSON" }, { status: 400 });
   }
 
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
-    return NextResponse.json({ error: "VALIDATION", details: parsed.error.flatten() }, { status: 400 });
+    return NextResponse.json({ error: "BAD_BODY", message: parsed.error.message }, { status: 400 });
   }
 
-  const { report, meetingDate } = parsed.data;
-  const when =
-    meetingDate && !Number.isNaN(Date.parse(meetingDate)) ? new Date(meetingDate) : new Date();
+  const report = parsed.data.report as ReportResult | null;
 
   try {
-    const buf = await generateDeliveryMeetingPptxFromTemplate(report as ReportResult | null, when);
-    const base = report?.filter.project ? safeFilenamePart(report.filter.project) : "delivery";
-    const filename = `delivery-followup-25-${base}.pptx`;
+    const buf = await renderDeliveryMeetingPptxFromTemplate(report);
+    const base =
+      report && report.filter?.project ? safeFilenamePart(report.filter.project) : "delivery";
+    const filename = `delivery-followup-${base}.pptx`;
     return new NextResponse(new Uint8Array(buf), {
       status: 200,
       headers: {
@@ -51,7 +37,18 @@ export async function POST(req: Request) {
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes("MISSING_TEMPLATE")) {
+      return NextResponse.json(
+        {
+          error: "MISSING_TEMPLATE",
+          message:
+            "Não foi encontrado nenhum modelo .pptx. Defina DELIVERY_PPT_TEMPLATE_PATH no .env, " +
+              "coloque TEMPLEATE.pptx na pasta Downloads, ou delivery-meeting-template.pptx em /templates.",
+        },
+        { status: 404 },
+      );
+    }
     console.error("[delivery-pptx]", msg);
-    return NextResponse.json({ error: "GENERATION_FAILED", message: msg }, { status: 500 });
+    return NextResponse.json({ error: "EXPORT_FAILED", message: msg }, { status: 500 });
   }
 }

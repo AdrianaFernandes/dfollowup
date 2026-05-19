@@ -651,3 +651,214 @@ table.data.pivotAreaStateTable .pivotCountTd {
 .wiProgressLabelMuted {
   color: var(--tr-dove);
 }
+
+/* Pendências da última reunião (cartão estilo follow-up) */
+.lastMeetingPendingCard {
+  margin-top: 1.25rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-panel);
+  border-left: 4px solid #133c2c;
+  padding: 0.85rem 1rem 1rem;
+}
+
+.lastMeetingPendingTitle {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #133c2c;
+  letter-spacing: -0.01em;
+}
+
+.lastMeetingPendingRule {
+  border: none;
+  border-top: 1px solid var(--tr-mercury);
+  margin: 0.5rem 0 0.65rem;
+}
+
+.lastMeetingPendingSubtitle {
+  margin: 0 0 0.75rem;
+  font-size: 0.88rem;
+  color: var(--tr-emperor);
+  line-height: 1.45;
+}
+
+.lastMeetingPendingTable,
+.lastMeetingPendingGrid {
+  display: grid;
+  grid-template-columns: minmax(6rem, 1.1fr) minmax(5rem, 0.55fr) minmax(6.5rem, 0.65fr) minmax(6rem, 1.1fr) 2rem;
+  gap: 0.4rem 0.5rem;
+  align-items: center;
+}
+
+@media (max-width: 720px) {
+  .lastMeetingPendingTable,
+  .lastMeetingPendingGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .lastMeetingPendingTable .lastMeetingPendingTh:nth-child(n + 3),
+  .lastMeetingPendingGrid .lastMeetingPendingTh:nth-child(n + 3),
+  .lastMeetingPendingTable .lastMeetingPendingCell:nth-child(5n + 3),
+  .lastMeetingPendingGrid .lastMeetingPendingCell:nth-child(5n + 3),
+  .lastMeetingPendingTable .lastMeetingPendingCell:nth-child(5n + 4),
+  .lastMeetingPendingGrid .lastMeetingPendingCell:nth-child(5n + 4),
+  .lastMeetingPendingTable .lastMeetingPendingCell:nth-child(5n + 5),
+  .lastMeetingPendingGrid .lastMeetingPendingCell:nth-child(5n + 5) {
+    grid-column: span 1;
+  }
+}
+
+.lastMeetingPendingRow {
+  display: contents;
+}
+
+.lastMeetingPendingTh {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tr-dove);
+  padding: 0.15rem 0.25rem 0.35rem;
+}
+
+.lastMeetingPendingCell input,
+.lastMeetingPendingCell select {
+  width: 100%;
+  min-width: 0;
+  font-size: 0.88rem;
+}
+
+.lastMeetingPendingCell--action {
+  display: flex;
+  justify-content: center;
+}
+
+.lastMeetingPendingRemove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--tr-dove);
+  font-size: 1.15rem;
+  line-height: 1;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.lastMeetingPendingRemove:hover {
+  background: var(--tr-mercury);
+  color: var(--tr-tundora);
+}
+
+.lastMeetingPendingRemove:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.lastMeetingPendingAdd {
+  margin-top: 0.75rem;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #133c2c;
+  background: #e8f5ef;
+  border: 1px solid #1a5c3a;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.lastMeetingPendingAdd:hover {
+  background: #d4ede0;
+}
+
+/* 3. Riscos e plano de ação (cartão alinhado às pendências) */
+.risksActionPlanCard {
+  margin-top: 1.25rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-panel);
+  border-left: 4px solid #133c2c;
+  padding: 0.85rem 1rem 1rem;
+}
+
+.risksActionPlanCard input:focus,
+.risksActionPlanCard select:focus {
+  outline: 2px solid #133c2c;
+  outline-offset: 0;
+  border-color: #1a5c3a;
+}
+
+.risksActionPlanTitle {
+  margin: 0 0 0.65rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #133c2c;
+  letter-spacing: -0.01em;
+}
+
+.risksActionPlanTable {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.risksActionPlanHeader,
+.risksActionPlanRow {
+  min-width: 720px;
+  display: grid;
+  grid-template-columns:
+    3.35rem minmax(5rem, 1.2fr) minmax(4rem, 0.85fr) minmax(5rem, 1.1fr) minmax(3.5rem, 0.55fr) minmax(7rem, 0.62fr) 2rem;
+  gap: 0.4rem 0.5rem;
+  align-items: center;
+}
+
+.risksActionPlanHeader {
+  padding-bottom: 0.4rem;
+  margin-bottom: 0.15rem;
+  border-bottom: 1px solid var(--tr-mercury);
+}
+
+.risksActionPlanRow {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--tr-mercury);
+}
+
+.risksActionPlanRow:last-of-type {
+  border-bottom: none;
+}
+
+.risksActionPlanTh {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tr-dove);
+  padding: 0.15rem 0.25rem 0;
+}
+
+.risksActionPlanCell input,
+.risksActionPlanCell select {
+  width: 100%;
+  min-width: 0;
+  font-size: 0.88rem;
+}
+
+.risksActionPlanCell select {
+  padding: 0.45rem 0.4rem;
+  text-align: center;
+}
+
+.risksActionPlanCell--date input {
+  font-variant-numeric: tabular-nums;
+}
+
+.risksActionPlanCell--action {
+  display: flex;
+  justify-content: center;
+}
