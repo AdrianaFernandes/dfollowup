@@ -14,6 +14,7 @@ export function exportConsolidatedCsv(report: ReportResult) {
         "Target início": f.targetDateStart ?? "",
         "Target fim": f.targetDateEnd ?? "",
         Tipos: f.workItemTypes.join("; "),
+        Estados: f.states?.length ? f.states.join("; ") : "(todos)",
         Total: c.total,
         Closed: c.closed,
         Active: c.active,

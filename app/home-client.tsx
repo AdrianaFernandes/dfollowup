@@ -9,6 +9,12 @@ import { STATE_BUCKET_GLOSSARY_PT } from "@/lib/ado/states";
 import { downloadCsv } from "@/lib/exportCsv";
 import { downloadReportPdf } from "@/lib/exportReportPdf";
 import { downloadDeliveryMeetingPptx } from "@/lib/exportDeliveryMeetingPptx";
+import {
+  createInitialPendingRows,
+  createInitialRiskRows,
+  type DeckPendingRow,
+  type DeckRiskRow,
+} from "@/lib/deliveryMeetingDeckInput";
 import { buildReportKpiPayload, formatDelta, type ReportKpiPayload } from "@/lib/reportKpis";
 import { getExecutiveVelocity } from "@/lib/ado/executiveVelocity";
 import { ExecutiveSummaryKpis } from "@/components/ExecutiveSummaryKpis";
@@ -54,6 +60,8 @@ type SavedWizardPayload = {
   targetStart: string;
   targetEnd: string;
   types: WorkItemTypeName[];
+  /** Estados incluídos na WIQL; omitido se todos os estados do processo estiverem seleccionados. */
+  selectedStates?: string[];
 };
 
 type SavedFilterRow = {
@@ -96,6 +104,9 @@ function isSavedWizardPayload(x: unknown): x is SavedWizardPayload {
   if (!Array.isArray(o.selectedIters) || !o.selectedIters.every((a) => typeof a === "string")) return false;
   if (typeof o.targetStart !== "string" || typeof o.targetEnd !== "string") return false;
   if (!Array.isArray(o.types) || !o.types.every((t) => typeof t === "string" && isWorkItemTypeName(t))) return false;
+  if (o.selectedStates !== undefined) {
+    if (!Array.isArray(o.selectedStates) || !o.selectedStates.every((s) => typeof s === "string")) return false;
+  }
   return true;
 }
 
@@ -129,6 +140,12 @@ export default function DeliveryFollowupClient() {
     "Bug",
   ]);
 
+  const [availableStatesMeta, setAvailableStatesMeta] = useState<{ name: string; category: string }[]>([]);
+  const [selectedStates, setSelectedStates] = useState<string[]>([]);
+  const [statesLoading, setStatesLoading] = useState(false);
+  const [statesErr, setStatesErr] = useState<string | null>(null);
+  const wizardStateRestoreRef = useRef<string[] | null>(null);
+
   const [reportLoading, setReportLoading] = useState(false);
   const [reportErr, setReportErr] = useState<string | null>(null);
   const [report, setReport] = useState<ReportResult | null>(null);
@@ -151,6 +168,15 @@ export default function DeliveryFollowupClient() {
   const [snapshotsErr, setSnapshotsErr] = useState<string | null>(null);
   const [copySummaryMsg, setCopySummaryMsg] = useState<string | null>(null);
   const [reportGenSeconds, setReportGenSeconds] = useState(0);
+  const [deckPendencias, setDeckPendencias] = useState<DeckPendingRow[]>(createInitialPendingRows);
+  const [deckRiscos, setDeckRiscos] = useState<DeckRiskRow[]>(createInitialRiskRows);
+
+  useEffect(() => {
+    if (!report) {
+      setDeckPendencias(createInitialPendingRows());
+      setDeckRiscos(createInitialRiskRows());
+    }
+  }, [report]);
 
   const refreshSavedFilters = useCallback(async () => {
     setSavedFiltersLoading(true);
@@ -277,6 +303,51 @@ export default function DeliveryFollowupClient() {
     resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [step, report]);
 
+  useEffect(() => {
+    if (step !== 4 || !project.trim()) return;
+    if (types.length === 0) {
+      setAvailableStatesMeta([]);
+      setSelectedStates([]);
+      setStatesErr(null);
+      setStatesLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setStatesLoading(true);
+      setStatesErr(null);
+      try {
+        const qs = new URLSearchParams({ project: project.trim(), types: types.join(",") });
+        const res = await fetch(appApiUrl(`/api/work-item-states?${qs}`));
+        const data = (await res.json()) as { error?: string; states?: { name: string; category: string }[] };
+        if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "Falha ao carregar estados");
+        const states = data.states ?? [];
+        if (cancelled) return;
+        setAvailableStatesMeta(states);
+        const names = states.map((s) => s.name);
+        const restore = wizardStateRestoreRef.current;
+        wizardStateRestoreRef.current = null;
+        if (restore?.length) {
+          const v = restore.filter((x) => names.includes(x));
+          setSelectedStates(v.length ? v : names);
+        } else {
+          setSelectedStates(names);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setStatesErr(e instanceof Error ? e.message : "Erro");
+          setAvailableStatesMeta([]);
+          setSelectedStates([]);
+        }
+      } finally {
+        if (!cancelled) setStatesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [step, project, types]);
+
   const filteredAreas = useMemo(() => {
     const q = areaSearch.trim().toLowerCase();
     if (!q) return areas;
@@ -310,6 +381,14 @@ export default function DeliveryFollowupClient() {
     setTypes((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
   }
 
+  function toggleStateSelection(name: string) {
+    setSelectedStates((prev) => (prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]));
+  }
+
+  function selectAllStates() {
+    setSelectedStates(availableStatesMeta.map((s) => s.name));
+  }
+
   function buildWizardPayload(): SavedWizardPayload {
     return {
       version: FILTER_PAYLOAD_VERSION,
@@ -320,6 +399,10 @@ export default function DeliveryFollowupClient() {
       targetStart,
       targetEnd,
       types,
+      selectedStates:
+        availableStatesMeta.length > 0 && selectedStates.length < availableStatesMeta.length
+          ? selectedStates
+          : undefined,
     };
   }
 
@@ -336,6 +419,8 @@ export default function DeliveryFollowupClient() {
     setTargetEnd(p.targetEnd);
     const nextTypes = p.types.filter(isWorkItemTypeName);
     setTypes(nextTypes.length > 0 ? nextTypes : [...WORK_ITEM_TYPES]);
+    wizardStateRestoreRef.current =
+      p.selectedStates !== undefined && p.selectedStates.length > 0 ? [...p.selectedStates] : null;
     setAreaSearch("");
     setIterSearch("");
     setStep(2);
@@ -386,6 +471,12 @@ export default function DeliveryFollowupClient() {
   async function runReport() {
     setReportErr(null);
     setReport(null);
+    const allNames = availableStatesMeta.map((s) => s.name);
+    const nameSet = new Set(allNames);
+    const allStatesSelected =
+      allNames.length > 0 &&
+      selectedStates.length === allNames.length &&
+      selectedStates.every((s) => nameSet.has(s));
     const body: ReportFilterInput = {
       project,
       areaPaths: selectedAreas,
@@ -394,6 +485,10 @@ export default function DeliveryFollowupClient() {
       iterationPaths: dateMode === "iteration" ? selectedIters : undefined,
       targetDateStart: dateMode === "targetDate" ? targetStart : undefined,
       targetDateEnd: dateMode === "targetDate" ? targetEnd : undefined,
+      states:
+        !statesErr && allNames.length > 0 && !allStatesSelected && selectedStates.length > 0
+          ? selectedStates
+          : undefined,
     };
     setReportLoading(true);
     try {
@@ -460,7 +555,10 @@ export default function DeliveryFollowupClient() {
     dateMode === "iteration"
       ? selectedIters.length > 0
       : !!(targetStart && targetEnd);
-  const canRun = types.length > 0 && canStep2 && canStep3 && canStep4;
+  const stateSelectionInvalid =
+    availableStatesMeta.length > 0 && selectedStates.length === 0;
+  const canRun =
+    types.length > 0 && canStep2 && canStep3 && canStep4 && !stateSelectionInvalid;
 
   function buildExecutiveSummaryText(r: ReportResult): string {
     const c = r.consolidated;
@@ -473,6 +571,7 @@ export default function DeliveryFollowupClient() {
     return [
       `Delivery Follow-up — ${f.project}`,
       `Tipos: ${f.workItemTypes.join(", ")}`,
+      f.states?.length ? `Estados: ${f.states.join(", ")}` : "Estados: (todos)",
       dateLine,
       `Áreas (WIQL): ${f.areaPaths.length} root(s)`,
       "",
@@ -778,6 +877,51 @@ export default function DeliveryFollowupClient() {
                   </label>
                 ))}
               </div>
+
+              <div className="stepTitle" style={{ marginTop: "1rem" }}>
+                Estados (System.State)
+              </div>
+              <p className="muted" style={{ marginTop: 0, marginBottom: "0.5rem" }}>
+                Estados definidos no processo para os tipos seleccionados. Desmarca os que queres{" "}
+                <strong>excluir</strong> do relatório. Com todos marcados, não há filtro por estado na WIQL.
+              </p>
+              {statesLoading ? (
+                <p className="muted">A carregar estados…</p>
+              ) : statesErr ? (
+                <p className="error">{statesErr}</p>
+              ) : availableStatesMeta.length === 0 ? (
+                <p className="muted">Nenhum estado devolvido (verifica tipos e permissões PAT).</p>
+              ) : (
+                <>
+                  <div className="row" style={{ marginBottom: "0.5rem", flexWrap: "wrap", gap: "0.35rem" }}>
+                    <button type="button" className="btnSecondary btn" onClick={selectAllStates}>
+                      Marcar todos
+                    </button>
+                    <span className="muted">
+                      Incluídos na WIQL: {selectedStates.length} / {availableStatesMeta.length}
+                    </span>
+                  </div>
+                  <div className="listScroll" style={{ maxHeight: "12rem" }}>
+                    {availableStatesMeta.map((s) => (
+                      <label key={s.name} style={{ display: "block" }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedStates.includes(s.name)}
+                          onChange={() => toggleStateSelection(s.name)}
+                        />{" "}
+                        {s.name}
+                        {s.category ? (
+                          <span className="muted" style={{ fontSize: "0.85rem" }}>
+                            {" "}
+                            ({s.category})
+                          </span>
+                        ) : null}
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
+
               {reportErr && <p className="error">{reportErr}</p>}
               <label style={{ display: "block", marginTop: "0.5rem", cursor: "pointer" }}>
                 <input
@@ -856,15 +1000,17 @@ export default function DeliveryFollowupClient() {
             <button
               type="button"
               className="btnSecondary btn"
-              title="PowerPoint a partir do modelo (marcadores {{DF_*}}). Ordem: DELIVERY_PPT_TEMPLATE_PATH → Downloads/TEMPLEATE.pptx → templates/delivery-meeting-template.pptx"
+              title="PowerPoint: ficheiro gerado no servidor (PptxGenJS) com relatório Azure DevOps, KPIs, separadores Consolidado / Roadmap / Análise e métricas, e tabelas «Pendências» e «Riscos» do Consolidado. Não requer ficheiro .pptx modelo no disco."
               onClick={() =>
-                void downloadDeliveryMeetingPptx(report).catch((err: unknown) => {
+                void downloadDeliveryMeetingPptx(report, {
+                  deckInput: { pendencias: deckPendencias, riscos: deckRiscos },
+                }).catch((err: unknown) => {
                   const msg = err instanceof Error ? err.message : String(err);
                   window.alert(`Exportação PowerPoint: ${msg}`);
                 })
               }
             >
-              PowerPoint (modelo)
+              PowerPoint
             </button>
           </div>
 
@@ -949,14 +1095,19 @@ export default function DeliveryFollowupClient() {
                 background: "var(--bg)",
               }}
             >
-              Nenhum work item encontrado para este filtro. Confirme áreas, iteração ou intervalo de Target Date e tipos.
+              Nenhum work item encontrado para este filtro. Confirme áreas, iteração ou intervalo de Target Date,
+              tipos e filtro de estados.
             </p>
           ) : null}
 
           {resultTab === "consolidado" && (
             <div>
               <p className="muted">
-                Recorte: tipos {report.filter.workItemTypes.join(", ")} —{" "}
+                Recorte: tipos {report.filter.workItemTypes.join(", ")}
+                {report.filter.states?.length ? (
+                  <> — estados {report.filter.states.join(", ")}</>
+                ) : null}{" "}
+                —{" "}
                 {report.filter.dateMode === "iteration"
                   ? `Iteration: ${report.filter.iterationPaths?.length ?? 0} path(s)`
                   : `Target Date: ${report.filter.targetDateStart} → ${report.filter.targetDateEnd}`}
@@ -965,8 +1116,8 @@ export default function DeliveryFollowupClient() {
                 Visão por área — work items
               </h3>
               <AreaPathConsolidadoGrid areas={report.byArea} />
-              <LastMeetingPendingCard />
-              <RisksActionPlanCard />
+              <LastMeetingPendingCard rows={deckPendencias} onRowsChange={setDeckPendencias} />
+              <RisksActionPlanCard rows={deckRiscos} onRowsChange={setDeckRiscos} />
             </div>
           )}
 

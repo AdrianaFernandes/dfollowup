@@ -1,11 +1,35 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import type { ReportResult } from "@/lib/ado/report";
+import { reportResultSchema } from "@/lib/ado/reportResultSchema";
 import { safeFilenamePart } from "@/lib/deliveryMeetingPptxShared";
-import { renderDeliveryMeetingPptxFromTemplate } from "@/lib/server/deliveryMeetingTemplatePptx";
+import { buildDeliveryMeetingPptxProgrammatic } from "@/lib/exportDeliveryMeetingPptxProgrammatic";
+
+const deckPendingRowSchema = z.object({
+  id: z.string(),
+  pendencia: z.string(),
+  owner: z.string(),
+  status: z.string(),
+  observacao: z.string(),
+});
+
+const deckRiskRowSchema = z.object({
+  id: z.string(),
+  sev: z.string(),
+  risco: z.string(),
+  areaAfetada: z.string(),
+  planoAcao: z.string(),
+  owner: z.string(),
+  prazo: z.string(),
+});
+
+const deckInputSchema = z.object({
+  pendencias: z.array(deckPendingRowSchema),
+  riscos: z.array(deckRiskRowSchema),
+});
 
 const bodySchema = z.object({
-  report: z.unknown(),
+  report: reportResultSchema,
+  deckInput: deckInputSchema.optional(),
 });
 
 export async function POST(req: Request) {
@@ -18,15 +42,19 @@ export async function POST(req: Request) {
 
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
-    return NextResponse.json({ error: "BAD_BODY", message: parsed.error.message }, { status: 400 });
+    return NextResponse.json(
+      { error: "BAD_BODY", message: parsed.error.message, issues: parsed.error.issues },
+      { status: 400 },
+    );
   }
 
-  const report = parsed.data.report as ReportResult | null;
+  const report = parsed.data.report;
+  const deckInput = parsed.data.deckInput;
 
   try {
-    const buf = await renderDeliveryMeetingPptxFromTemplate(report);
+    const buf = await buildDeliveryMeetingPptxProgrammatic(report, deckInput ?? null);
     const base =
-      report && report.filter?.project ? safeFilenamePart(report.filter.project) : "delivery";
+      report.filter?.project ? safeFilenamePart(report.filter.project) : "delivery";
     const filename = `delivery-followup-${base}.pptx`;
     return new NextResponse(new Uint8Array(buf), {
       status: 200,
@@ -37,17 +65,6 @@ export async function POST(req: Request) {
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    if (msg.includes("MISSING_TEMPLATE")) {
-      return NextResponse.json(
-        {
-          error: "MISSING_TEMPLATE",
-          message:
-            "Não foi encontrado nenhum modelo .pptx. Defina DELIVERY_PPT_TEMPLATE_PATH no .env, " +
-              "coloque TEMPLEATE.pptx na pasta Downloads, ou delivery-meeting-template.pptx em /templates.",
-        },
-        { status: 404 },
-      );
-    }
     console.error("[delivery-pptx]", msg);
     return NextResponse.json({ error: "EXPORT_FAILED", message: msg }, { status: 500 });
   }

@@ -28,13 +28,21 @@ function typesClause(types: string[]): string {
   return `[System.WorkItemType] IN (${inner})`;
 }
 
+function statesClause(stateNames: string[]): string {
+  const inner = stateNames.map((s) => `'${escapeWiqlString(s)}'`).join(", ");
+  return `[System.State] IN (${inner})`;
+}
+
 export function buildIdsOnlyWiql(filter: ReportFilterInput): string {
   const project = escapeWiqlString(filter.project);
+  const states =
+    filter.states?.length && filter.states.length > 0 ? `AND ${statesClause(filter.states)} ` : "";
   return (
     `SELECT [System.Id] FROM WorkItems ` +
     `WHERE [System.TeamProject] = '${project}' ` +
     `AND ${areaClause(filter.areaPaths)} ` +
     `AND ${typesClause(filter.workItemTypes)} ` +
+    states +
     (filter.dateMode === "iteration"
       ? `AND ${iterationClause(filter.iterationPaths ?? [])} `
       : `AND ${targetDateClause(filter.targetDateStart!, filter.targetDateEnd!)} `) +

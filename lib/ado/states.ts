@@ -26,6 +26,47 @@ export function categoryToBucket(category: string): StateBucket {
   return "active";
 }
 
+export type WorkItemStateOption = {
+  name: string;
+  /** Categoria ADO (ex.: proposed, in progress, completed), normalizada em minúsculas quando existir. */
+  category: string;
+};
+
+/**
+ * Lista única de estados definidos no processo para os tipos seleccionados (união).
+ * Ordenada por nome para a UI.
+ */
+export async function fetchDistinctWorkItemStates(
+  project: string,
+  types: WorkItemTypeName[],
+): Promise<WorkItemStateOption[]> {
+  const enc = encodeURIComponent(project);
+  const byName = new Map<string, string>();
+
+  await Promise.all(
+    types.map(async (wit) => {
+      const t = encodeURIComponent(wit);
+      const path = `/${enc}/_apis/wit/workitemtypes/${t}/states?api-version=${ADO_API_VERSION}`;
+      try {
+        const res = await adoFetch<StatesResponse>(path);
+        const rows = res.value ?? res.states ?? [];
+        for (const row of rows) {
+          const name = row.name?.trim();
+          if (!name) continue;
+          const cat = normalizeCategory(row.category);
+          if (!byName.has(name)) byName.set(name, cat);
+        }
+      } catch {
+        // ignore missing type in process
+      }
+    }),
+  );
+
+  return [...byName.entries()]
+    .sort(([a], [b]) => a.localeCompare(b, undefined, { sensitivity: "base" }))
+    .map(([name, category]) => ({ name, category }));
+}
+
 export async function fetchStateBucketsForTypes(
   project: string,
   types: WorkItemTypeName[],

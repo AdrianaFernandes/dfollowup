@@ -1,59 +1,40 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
+import type { DeckRiskRow } from "@/lib/deliveryMeetingDeckInput";
+import { createEmptyDeckRiskRow, createInitialRiskRows } from "@/lib/deliveryMeetingDeckInput";
 
-type RiskRow = {
-  id: string;
-  sev: string;
-  risco: string;
-  areaAfetada: string;
-  planoAcao: string;
-  owner: string;
-  prazo: string;
+type Props = {
+  rows?: DeckRiskRow[];
+  onRowsChange?: Dispatch<SetStateAction<DeckRiskRow[]>>;
 };
 
-function createRowId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return `risk-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function emptyRow(sev: string): RiskRow {
-  return {
-    id: createRowId(),
-    sev,
-    risco: "",
-    areaAfetada: "",
-    planoAcao: "",
-    owner: "",
-    prazo: "",
-  };
-}
-
-export function RisksActionPlanCard() {
-  const [rows, setRows] = useState<RiskRow[]>(() => [
-    emptyRow("alto"),
-    emptyRow("medio"),
-    emptyRow("medio"),
-  ]);
+export function RisksActionPlanCard({ rows: rowsProp, onRowsChange }: Props) {
+  const [internalRows, setInternalRows] = useState<DeckRiskRow[]>(createInitialRiskRows);
+  const controlled = rowsProp !== undefined && onRowsChange !== undefined;
+  const rows = controlled ? rowsProp! : internalRows;
+  const setRows = controlled ? onRowsChange! : setInternalRows;
 
   const addRow = useCallback(() => {
-    setRows((prev) => [...prev, emptyRow("medio")]);
-  }, []);
+    setRows((prev) => [...prev, createEmptyDeckRiskRow("medio")]);
+  }, [setRows]);
 
-  const removeRow = useCallback((id: string) => {
-    setRows((prev) => {
-      if (prev.length <= 1) return prev;
-      return prev.filter((row) => row.id !== id);
-    });
-  }, []);
+  const removeRow = useCallback(
+    (id: string) => {
+      setRows((prev) => {
+        if (prev.length <= 1) return prev;
+        return prev.filter((row) => row.id !== id);
+      });
+    },
+    [setRows],
+  );
 
-  const updateRow = useCallback((id: string, field: keyof Omit<RiskRow, "id">, value: string) => {
-    setRows((prev) =>
-      prev.map((row) => (row.id === id ? { ...row, [field]: value } : row)),
-    );
-  }, []);
+  const updateRow = useCallback(
+    (id: string, field: keyof Omit<DeckRiskRow, "id">, value: string) => {
+      setRows((prev) => prev.map((row) => (row.id === id ? { ...row, [field]: value } : row)));
+    },
+    [setRows],
+  );
 
   return (
     <section className="risksActionPlanCard" aria-labelledby="risks-action-plan-title">

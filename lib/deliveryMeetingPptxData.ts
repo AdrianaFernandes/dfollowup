@@ -2,6 +2,8 @@ import type { ReportFilterInput } from "@/lib/ado/filters";
 import type { ReportResult, RoadmapRow } from "@/lib/ado/report";
 import { groupRoadmapBySelectedAreas } from "@/lib/ado/roadmapGroups";
 import { getExecutiveVelocity } from "@/lib/ado/executiveVelocity";
+import type { DeliveryMeetingDeckInput } from "@/lib/deliveryMeetingDeckInput";
+import { formatDeckPendenciasPlaceholder, formatDeckRiscosPlaceholder } from "@/lib/deliveryMeetingDeckInput";
 
 /**
  * Chaves = token dentro de `{{...}}` no PowerPoint (ex.: DF_PROJECT → substituir `{{DF_PROJECT}}`).
@@ -14,11 +16,14 @@ function pct(n: number): string {
 }
 
 function filterRecapLine(filter: ReportFilterInput): string {
-  if (filter.dateMode === "iteration") {
-    const n = filter.iterationPaths?.length ?? 0;
-    return `Iteration: ${n} path(s) · Tipos: ${filter.workItemTypes.join(", ")}`;
+  let line =
+    filter.dateMode === "iteration"
+      ? `Iteration: ${filter.iterationPaths?.length ?? 0} path(s) · Tipos: ${filter.workItemTypes.join(", ")}`
+      : `Target Date: ${filter.targetDateStart ?? ""} → ${filter.targetDateEnd ?? ""} · Tipos: ${filter.workItemTypes.join(", ")}`;
+  if (filter.states?.length) {
+    line += ` · Estados: ${filter.states.join(", ")}`;
   }
-  return `Target Date: ${filter.targetDateStart ?? ""} → ${filter.targetDateEnd ?? ""} · Tipos: ${filter.workItemTypes.join(", ")}`;
+  return line;
 }
 
 function areasSummary(filter: ReportFilterInput): string {
@@ -105,8 +110,14 @@ function tierSectionAnalytics(report: ReportResult): string {
   return [mix || "(sem mix por tipo)", tags || "(sem tags)"].join("\n");
 }
 
-/** Mapa de placeholders para o modelo .pptx (marcadores `{{DF_*}}`). */
-export function buildDeliveryMeetingPlaceholderMap(report: ReportResult | null): DeliveryMeetingPlaceholderMap {
+/** Mapa de texto derivado de `ReportResult` / `deckInput` (paridade com marcadores `{{DF_*}}` do modelo legado). */
+export function buildDeliveryMeetingPlaceholderMap(
+  report: ReportResult | null,
+  deckInput?: DeliveryMeetingDeckInput | null,
+): DeliveryMeetingPlaceholderMap {
+  const uiPend = deckInput ? formatDeckPendenciasPlaceholder(deckInput.pendencias) : "";
+  const uiRiscos = deckInput ? formatDeckRiscosPlaceholder(deckInput.riscos) : "";
+
   const empty = (keys: string[]) =>
     Object.fromEntries(keys.map((k) => [k, ""])) as DeliveryMeetingPlaceholderMap;
 
@@ -133,10 +144,15 @@ export function buildDeliveryMeetingPlaceholderMap(report: ReportResult | null):
     "DF_OPEN_TSV",
     "DF_THANK_YOU_PROJECT",
     "DF_TIER_SECTION_ANALYTICS",
+    "DF_UI_LAST_MEETING_PENDING",
+    "DF_UI_RISKS_ACTION_PLAN",
   ] as const;
 
   if (!report) {
-    return empty([...allKeys]);
+    const base = empty([...allKeys]);
+    base.DF_UI_LAST_MEETING_PENDING = uiPend;
+    base.DF_UI_RISKS_ACTION_PLAN = uiRiscos;
+    return base;
   }
 
   const f = report.filter;
@@ -184,13 +200,7 @@ export function buildDeliveryMeetingPlaceholderMap(report: ReportResult | null):
       .join("\n"),
     DF_THANK_YOU_PROJECT: proj || "Delivery Follow-up",
     DF_TIER_SECTION_ANALYTICS: tierSectionAnalytics(report),
+    DF_UI_LAST_MEETING_PENDING: uiPend,
+    DF_UI_RISKS_ACTION_PLAN: uiRiscos,
   };
-}
-
-/** Lista para `modify.replaceText([...])` do pptx-automizer. */
-export function buildDeliveryMeetingReplaceTextSpecs(map: DeliveryMeetingPlaceholderMap) {
-  return Object.entries(map).map(([replace, text]) => ({
-    replace,
-    by: { text: text ?? "" },
-  }));
 }

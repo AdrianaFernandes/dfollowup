@@ -29,6 +29,14 @@ export function downloadReportPdf(report: ReportResult, filename?: string) {
   );
   y += 6;
   doc.text(`Tipos: ${report.filter.workItemTypes.join(", ")}`, 14, y);
+  y += 6;
+  doc.text(
+    report.filter.states?.length
+      ? `Estados: ${report.filter.states.join(", ")}`
+      : "Estados: (todos)",
+    14,
+    y,
+  );
   y += 10;
 
   doc.setFontSize(12);

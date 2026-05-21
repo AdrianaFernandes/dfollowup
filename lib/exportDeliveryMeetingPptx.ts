@@ -1,4 +1,5 @@
 import type { ReportResult } from "@/lib/ado/report";
+import type { DeliveryMeetingDeckInput } from "@/lib/deliveryMeetingDeckInput";
 import { safeFilenamePart } from "@/lib/deliveryMeetingPptxShared";
 
 function deliveryPptxApiUrl(): string {
@@ -6,17 +7,26 @@ function deliveryPptxApiUrl(): string {
   return new URL("/api/export/delivery-pptx", window.location.origin).href;
 }
 
+export type DownloadDeliveryMeetingPptxOptions = {
+  filename?: string;
+  deckInput?: DeliveryMeetingDeckInput;
+};
+
 /**
- * Exporta o deck usando o modelo .pptx (marcadores `{{DF_*}}` substituídos no servidor).
+ * Exporta o deck PowerPoint gerado no servidor com **PptxGenJS** (sem modelo `.pptx`).
+ * Inclui dados do relatório (`report`) e, opcionalmente, as tabelas manuais do Consolidado (`deckInput`).
  */
 export async function downloadDeliveryMeetingPptx(
   report: ReportResult,
-  options?: { filename?: string },
+  options?: DownloadDeliveryMeetingPptxOptions,
 ): Promise<void> {
   const res = await fetch(deliveryPptxApiUrl(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ report }),
+    body: JSON.stringify({
+      report,
+      deckInput: options?.deckInput,
+    }),
   });
 
   if (!res.ok) {

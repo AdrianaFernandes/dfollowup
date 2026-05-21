@@ -1,51 +1,40 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
+import type { DeckPendingRow } from "@/lib/deliveryMeetingDeckInput";
+import { createEmptyDeckPendingRow, createInitialPendingRows } from "@/lib/deliveryMeetingDeckInput";
 
-type PendingRow = {
-  id: string;
-  pendencia: string;
-  owner: string;
-  status: string;
-  observacao: string;
+type Props = {
+  rows?: DeckPendingRow[];
+  onRowsChange?: Dispatch<SetStateAction<DeckPendingRow[]>>;
 };
 
-function createRowId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return `row-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function emptyRow(): PendingRow {
-  return {
-    id: createRowId(),
-    pendencia: "",
-    owner: "",
-    status: "pendente",
-    observacao: "",
-  };
-}
-
-export function LastMeetingPendingCard() {
-  const [rows, setRows] = useState<PendingRow[]>(() => [emptyRow(), emptyRow()]);
+export function LastMeetingPendingCard({ rows: rowsProp, onRowsChange }: Props) {
+  const [internalRows, setInternalRows] = useState<DeckPendingRow[]>(createInitialPendingRows);
+  const controlled = rowsProp !== undefined && onRowsChange !== undefined;
+  const rows = controlled ? rowsProp! : internalRows;
+  const setRows = controlled ? onRowsChange! : setInternalRows;
 
   const addRow = useCallback(() => {
-    setRows((prev) => [...prev, emptyRow()]);
-  }, []);
+    setRows((prev) => [...prev, createEmptyDeckPendingRow()]);
+  }, [setRows]);
 
-  const removeRow = useCallback((id: string) => {
-    setRows((prev) => {
-      if (prev.length <= 1) return prev;
-      return prev.filter((row) => row.id !== id);
-    });
-  }, []);
+  const removeRow = useCallback(
+    (id: string) => {
+      setRows((prev) => {
+        if (prev.length <= 1) return prev;
+        return prev.filter((row) => row.id !== id);
+      });
+    },
+    [setRows],
+  );
 
-  const updateRow = useCallback((id: string, field: keyof Omit<PendingRow, "id">, value: string) => {
-    setRows((prev) =>
-      prev.map((row) => (row.id === id ? { ...row, [field]: value } : row)),
-    );
-  }, []);
+  const updateRow = useCallback(
+    (id: string, field: keyof Omit<DeckPendingRow, "id">, value: string) => {
+      setRows((prev) => prev.map((row) => (row.id === id ? { ...row, [field]: value } : row)));
+    },
+    [setRows],
+  );
 
   return (
     <section className="lastMeetingPendingCard" aria-labelledby="last-meeting-pending-title">

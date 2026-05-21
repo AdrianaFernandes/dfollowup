@@ -21,6 +21,8 @@ export const reportFilterSchema = z
     workItemTypes: z
       .array(z.enum(WORK_ITEM_TYPES))
       .min(1, "Selecione ao menos um tipo de work item"),
+    /** Se definido e não vazio, a WIQL restringe a `[System.State] IN (...)`. Nomes exactos do processo. */
+    states: z.array(z.string().min(1)).max(200).optional(),
   })
   .superRefine((data, ctx) => {
     if (data.dateMode === "iteration") {
